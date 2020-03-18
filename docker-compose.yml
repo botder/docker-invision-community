@@ -1,0 +1,56 @@
+version: "3"
+
+services:
+  webserver:
+    image: invision_webserver
+    container_name: invision_webserver
+    build:
+      context: ./nginx
+      args:
+       - UID=1000 # user: username
+       - GID=1000 # group: groupname
+    networks:
+      - invision
+      - frontend
+    volumes:
+      - "./www/:/var/www"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=frontend"
+      - "traefik.http.routers.invision.rule=Host(`example.com`)"
+      - "traefik.http.routers.invision.entrypoints=websecure"
+      - "traefik.http.routers.invision.tls.certresolver=default-tls"
+      - "traefik.http.services.invision.loadbalancer.server.port=8080"
+    restart: unless-stopped
+  php-fpm:
+    image: invision_php
+    container_name: invision_php
+    build:
+      context: ./php
+      args:
+       - UID=1000 # user: username
+       - GID=1000 # group: groupname
+    networks:
+      - invision
+    volumes:
+      - "./www/:/var/www"
+    restart: unless-stopped
+  database:
+    image: mysql:8
+    container_name: invision_database
+    user: "1000:1000" # username:groupname (uid:gid)
+    command: --default-authentication-plugin=mysql_native_password
+    restart: unless-stopped
+    networks:
+      - invision
+    volumes:
+     - "./database/:/var/lib/mysql"
+    environment:
+      MYSQL_DATABASE: invision
+      MYSQL_ROOT_PASSWORD: PLEASE_CHANGE_THIS_PASSWORD_AT_SOME_POINT
+
+networks:
+  invision:
+    driver: bridge
+  frontend:
+    external: true
